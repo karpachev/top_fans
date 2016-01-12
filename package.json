@@ -1,0 +1,27 @@
+{
+  "name": "top_fans",
+  "version": "1.0.0",
+  "description": "Determine the \"top\" fans on your page",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/karpachev/top_fans.git"
+  },
+  "keywords": [
+    "facebook",
+    "analytics"
+  ],
+  "author": "karpachev",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/karpachev/top_fans/issues"
+  },
+  "homepage": "https://github.com/karpachev/top_fans#readme",
+  "dependencies": {
+    "async": "^1.5.2",
+    "fb": "^0.7.3"
+  }
+}
