@@ -3,7 +3,8 @@ var request = require("request");
 var fs = require("fs");
 
 
-var ACCESS_TOKEN = readFileSync("access_token.txt");
+var ACCESS_TOKEN = fs.readFileSync("access_token.txt",{encoding:"utf8"});
+console.log(ACCESS_TOKEN);
 
 
 
@@ -17,7 +18,16 @@ FB.api(
 			fields: 'message,story,description,created_time,from' + 
 					',shares' +
 					',likes.summary(true).limit(100).order(reverse_chronological){name}' +
-					',comments.summary(true).order(reverse_chronological).limit(100){from,message,likes.summary(true).limit(100).order(reverse_chronological){name}}'
+					',comments.summary(true).order(reverse_chronological).limit(100)' +
+						'{' +
+							'from,message' +
+							',likes.summary(true).limit(100).order(reverse_chronological){name}' +
+							',comments.summary(true).order(reverse_chronological).limit(100)' +
+								'{' +
+									'from,message' +
+									',likes.summary(true).limit(100).filter(stream).order(reverse_chronological){name}' +
+								'}' +
+						'}'
 			,limit: 100
 	}
 	,function(res) {
@@ -59,9 +69,9 @@ function feed_history(next_url)
 
 function process_posts(posts)
 {
-	posts.forEach(function(v,i,arr){
+	posts.forEach(function(post,i,posts){
 		process.stdout.write(".");
-		feed.push(v);
+		feed.push(post);
 	});
 
 	console.log("Stored %d posts", posts.length);
