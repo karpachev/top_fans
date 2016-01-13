@@ -13,7 +13,7 @@ var feed = [];
 FB.setAccessToken(ACCESS_TOKEN);
 
 FB.api(
-	"/komfo.bg/feed"
+	"/7329581606/feed"
 	,{
 			fields: 'message,story,description,created_time,from' + 
 					',shares' +
@@ -28,7 +28,7 @@ FB.api(
 									',likes.summary(true).limit(100).filter(stream).order(reverse_chronological){name}' +
 								'}' +
 						'}'
-			,limit: 100
+			,limit: 30
 	}
 	,function(res) {
 		if(!res || res.error) {
@@ -36,38 +36,35 @@ FB.api(
 			return;
 		}
 
-	    if (res.data) {
-	    	process_posts(res.data);
-	    }
-
-		feed_history(res.paging.next);
+		feed_history(feed, res.data, res.paging.next);
 	}
 );
 
-function feed_history(next_url) 
+function feed_history(destination, data, next_url) 
 {
+	if (!data || data.length==0) {
+		return;
+	}
+	process_posts(destination, data);
+
 	request(
 		next_url,
 		function (error, response, res) {
 			if (!error && response.statusCode == 200) {
 				res = JSON.parse(res);
-			    // console.dir(res);
-			    if (res.data) {
-			    	process_posts(res.data);
-			    }
-
 
 				if (res.paging && res.paging.next) {
-					feed_history(res.paging.next);
+					feed_history(destination, res.data, res.paging.next);
 				} else {
-					extract_comments();
+					process_posts(destination, data);
+					do_rankings();
 				}
 			}
 		}
 	);
 }
 
-function process_posts(posts)
+function process_posts(feed, posts)
 {
 	posts.forEach(function(post,i,posts){
 		process.stdout.write(".");
@@ -77,7 +74,14 @@ function process_posts(posts)
 	console.log("Stored %d posts", posts.length);
 }
 
-function extract_comments()
+function do_rankings()
 {
-	console.log("Extracting comments");
+	console.log("Analyzing %s posts", feed.length);
+
+	feed.forEach(function(post) {
+		console.log("%s: %s", 
+			post.created_time,
+			post.message
+		);
+	});
 }

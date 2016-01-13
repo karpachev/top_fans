@@ -1,4 +1,4 @@
-komfo.bg/feed?fields=message,story,description,
+7329581606/feed?fields=message,story,description,created_time,from,
 	likes.summary(true).limit(100).order(reverse_chronological){name},
 	comments.summary(true).order(reverse_chronological).limit(100)
 		{
@@ -12,3 +12,11 @@ komfo.bg/feed?fields=message,story,description,
 		},
 	shares
 	&limit=1
+
+
+7329581606/feed?fields=message,story,description,created_time,from,
+	likes.summary(true).limit(100).order(reverse_chronological){name},
+	comments.summary(true).order(reverse_chronological).limit(100),	
+	shares
+	&limit=1
+	&offset=3	
