@@ -53,9 +53,7 @@ FB.api(
 			return;
 		}
 
-		try {
-			fs.unlinkSync("./results.json")
-		} catch (e) {}
+		try {fs.unlinkSync("./results.json");} catch (e) {}
 		feed_history(feed, res.data, res.paging.next);
 	}
 );
@@ -83,8 +81,8 @@ function feed_history(destination, data, next_url)
 				if (res.paging && res.paging.next) {
 					feed_history(destination, res.data, res.paging.next);
 				} else {
-					process_posts(destination, data);
-					do_rankings();
+					process_posts(destination, res.data);
+					check_incomplete_data(res.data);
 				}
 			}
 		}
