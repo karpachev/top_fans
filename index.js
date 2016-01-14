@@ -6,11 +6,27 @@ var fs = require("fs");
 var ACCESS_TOKEN = fs.readFileSync("access_token.txt",{encoding:"utf8"});
 console.log(ACCESS_TOKEN);
 
+var stats = {
+	fb_api_calls : 1,
+
+	posts : 0,
+	likes : 0,
+	comments 	: 0,
+
+	log : function () {
+		console.log("Facebook calls: %d", this.fb_api_calls);
+		console.log("Processed results: %d posts, %d likes, %d comments",
+			this.posts, this.likes, this.comments
+		);
+	}
+};
+
 
 
 var feed = [];
 
 FB.setAccessToken(ACCESS_TOKEN);
+
 
 FB.api(
 	"/7329581606/feed"
@@ -31,27 +47,38 @@ FB.api(
 			,limit: 30
 	}
 	,function(res) {
+		stats.fb_api_calls++;
 		if(!res || res.error) {
 			console.log(!res ? 'error occurred' : res.error);
 			return;
 		}
 
+		try {
+			fs.unlinkSync("./results.json")
+		} catch (e) {}
 		feed_history(feed, res.data, res.paging.next);
 	}
 );
 
 function feed_history(destination, data, next_url) 
 {
-	if (!data || data.length==0) {
-		return;
+	fs.writeFileSync("results.json", JSON.stringify(feed));
+	if (!next_url) return;
+
+	if (data && data.length>0) {
+		process_posts(destination, data);
+		check_incomplete_data(data);
 	}
-	process_posts(destination, data);
 
 	request(
 		next_url,
 		function (error, response, res) {
+			stats.fb_api_calls++;
 			if (!error && response.statusCode == 200) {
+				//fs.appendFile("results.json", res);
 				res = JSON.parse(res);
+
+				
 
 				if (res.paging && res.paging.next) {
 					feed_history(destination, res.data, res.paging.next);
@@ -62,6 +89,16 @@ function feed_history(destination, data, next_url)
 			}
 		}
 	);
+}
+
+function check_incomplete_data(data) {
+	console.log("Checking for incomplete data");
+	data.forEach(function(obj,i){
+		if (obj.likes && obj.likes.paging && obj.likes.paging.next) {
+			// there is more data to be processed 
+			feed_history(obj.likes.data, [], obj.likes.paging.next)
+		}
+	});
 }
 
 function process_posts(feed, posts)
