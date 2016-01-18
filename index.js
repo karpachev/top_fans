@@ -1,6 +1,7 @@
 var FB = require("fb");
 var request = require("request");
 var fs = require("fs");
+var util = require("util");
 
 
 var ACCESS_TOKEN = fs.readFileSync("access_token.txt",{encoding:"utf8"});
@@ -41,23 +42,35 @@ fields_query_string = fields_query_string.replace( /LIKES_LIMIT/g, 1000);
 fields_query_string = fields_query_string.replace( /COMMETNS_LIMIT/g, 10);
 
 var feed = []; // contains the posts/comments/likes 
-FB.api(
-	"/7329581606/feed"
-	,{
-			fields: fields_query_string
-			,limit: 30
-	}
-	,function(res) {
-		stats.fb_api_calls++;
-		if(!res || res.error) {
-			console.log(!res ? 'error occurred' : res.error);
-			return;
-		}
-
-		try {fs.unlinkSync("./logs/results.json");} catch (e) {}
-		feed_history(feed, res.data, 0*res.paging.next);
-	}
+var FB_URL= util.format(
+	"https://graph.facebook.com/v2.5/%s/feed?fields=%s&limit=%d&access_token=%s",
+		7329581606,
+		fields_query_string,
+		30,
+		ACCESS_TOKEN
 );
+feed_history(feed, [], FB_URL);
+
+
+if (false) {
+	FB.api(
+		"/7329581606/feed"
+		,{
+				fields: fields_query_string
+				,limit: 30
+		}
+		,function(res) {
+			stats.fb_api_calls++;
+			if(!res || res.error) {
+				console.log(!res ? 'error occurred' : res.error);
+				return;
+			}
+
+			try {fs.unlinkSync("./logs/results.json");} catch (e) {}
+			feed_history(feed, res.data, 0*res.paging.next);
+		}
+	);
+}
 
 var feed_history_level= 0;
 function feed_history(destination, data, next_url) 
@@ -153,7 +166,7 @@ function memory_consumption(obj)
 		return 4;
 	}
 	if (typeof obj === "string") {
-		return obj.length;
+		return 2*obj.length + 4;
 	}
 
 	var result = 0;
