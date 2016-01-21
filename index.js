@@ -39,7 +39,7 @@ var fields_query_string =
 			'}' +
 	'}';
 fields_query_string = fields_query_string.replace( /LIKES_LIMIT/g, 1000);
-fields_query_string = fields_query_string.replace( /COMMETNS_LIMIT/g, 10);
+fields_query_string = fields_query_string.replace( /COMMETNS_LIMIT/g, 100);
 
 var feed = []; // contains the posts/comments/likes 
 var FB_URL= util.format(
@@ -75,7 +75,7 @@ if (false) {
 var feed_history_level= 0;
 function feed_history(destination, data, next_url) 
 {
-	feed_history_level++;
+	feed_history_level++ ;
 	fs.writeFileSync("./logs/results.json", JSON.stringify(feed));
 
 	if (data && data.length>0) {
@@ -91,6 +91,7 @@ function feed_history(destination, data, next_url)
 	request(
 		next_url,
 		function (error, response, res) {
+			feed_history_level-- ;
 			stats.fb_api_calls++;
 			if (!error && response.statusCode == 200) {
 				//fs.appendFile("./logs/results.json", res);
@@ -106,7 +107,6 @@ function feed_history(destination, data, next_url)
 				}
 			}
 
-			feed_history_level-- ;
 			console.log("Feed history level: %s", feed_history_level);
 			if (feed_history_level==0) {
 				// processing finished
