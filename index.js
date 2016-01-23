@@ -42,6 +42,7 @@ fields_query_string = fields_query_string.replace( /LIKES_LIMIT/g, 1000);
 fields_query_string = fields_query_string.replace( /COMMETNS_LIMIT/g, 100);
 
 var feed = []; // contains the posts/comments/likes 
+var backlog_requests = [] // requests to be fired later
 var FB_URL= util.format(
 	"https://graph.facebook.com/v2.5/%s/feed?fields=%s&limit=%d&access_token=%s",
 		7329581606,
@@ -49,6 +50,7 @@ var FB_URL= util.format(
 		30,
 		ACCESS_TOKEN
 );
+console.log(FB_URL);
 feed_history(feed, [], FB_URL);
 
 
@@ -57,7 +59,7 @@ if (false) {
 		"/7329581606/feed"
 		,{
 				fields: fields_query_string
-				,limit: 30
+				,limit: 5
 		}
 		,function(res) {
 			stats.fb_api_calls++;
@@ -105,13 +107,27 @@ function feed_history(destination, data, next_url)
 					process_posts(destination, res.data);
 					check_incomplete_data(res.data);
 				}
+			} else {
+				console.log("Facebook error", error, res)
+				setTimeout(
+					function(){
+						feed_history(destination, data, next_url);
+					}
+					,4000
+				);
+				
 			}
 
 			console.log("Feed history level: %s", feed_history_level);
-			if (feed_history_level==0) {
+			if (feed_history_level<=0) {
 				// processing finished
-				console.log("Memmroy used: %d Kb",	
-					memory_consumption(feed)/1024
+				console.log("Memmroy used: %d Mb. Total posts: %d. Still to be processed objects: %d",	
+					memory_consumption(feed)/1024/1024,
+					feed.length,
+					backlog_requests.length
+				);
+				console.log("Latest post time: %s",
+					feed[feed.length-1].created_time
 				);
 			}
 		}
@@ -124,10 +140,18 @@ function check_incomplete_data(data) {
 		if (obj.likes && obj.likes.paging && obj.likes.paging.next) {
 			// there is more data to be processed 
 			feed_history(obj.likes.data, [], obj.likes.paging.next)
+			backlog_requests.push({
+				data : obj.likes.data,
+				next : obj.likes.paging.next
+			});
 		}
 		if (obj.comments && obj.comments.paging && obj.comments.paging.next) {
 			// there is more data to be processed 
 			feed_history(obj.comments.data, [], obj.comments.paging.next)
+			backlog_requests.push({
+				data : obj.comments.data,
+				next : obj.comments.paging.next
+			});			
 		}		
 	});
 }
@@ -139,7 +163,7 @@ function process_posts(feed, posts)
 		feed.push(post);
 	});
 
-	console.log("Stored %d posts", posts.length);
+	console.log("Stored %d items", posts.length);
 }
 
 function do_rankings()
