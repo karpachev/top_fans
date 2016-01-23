@@ -21,7 +21,8 @@
   },
   "homepage": "https://github.com/karpachev/top_fans#readme",
   "dependencies": {
-    "async": "^1.5.2",
-    "fb": "^0.7.3"
+    "async": "1.5.2",
+    "extend": "3.0.0",
+    "request": "2.9.x"
   }
 }
