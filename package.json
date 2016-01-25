@@ -23,6 +23,7 @@
   "dependencies": {
     "async": "1.5.2",
     "extend": "3.0.0",
+    "moment": "2.11.1",
     "request": "2.9.x"
   }
 }
