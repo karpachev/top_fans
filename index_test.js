@@ -21,7 +21,13 @@ var komfo_bg = new FBScraper({
 });
 
 
-komfo_bg.ScrapePage();
+komfo_bg.ScrapePage()
+	.on("",function(){
+
+	})
+	.on("END",function(){
+		console.log("End in main");
+	});
 
 
 //console.log(komfo_bg.GetRootURL());	

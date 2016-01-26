@@ -30,11 +30,11 @@ var moment = require("moment");
   * 
   */
 function ScrapeFBPage(options) {
-	EventEmitter.call(this);
-	this._options = {};
-	var self = this;
+	EventEmitter.call(this); // inherit from Event Emitter
 
-	self._feed = [];
+	this._options = {}; 	// options that control the ScrapeFBPage
+	this._feed = [];  		// array of all the posts
+	var self = this;
 
 	// fill in the values for the optional arguments
 	extend(
@@ -43,7 +43,6 @@ function ScrapeFBPage(options) {
 		,{
 			period : {
 				 from: moment().subtract(30,"days")  // TODO: change using moment.js
-				,to: moment()
 			}
 			,limits : {
 				 posts_limit : 30
@@ -80,9 +79,10 @@ function ScrapeFBPage(options) {
 		}
 	};
 
-	// queue of call to scrape the page
+	// create queue to manage the FB API calls to scrape the page
 	this._queue = async.priorityQueue(
 		function(params, callback) {
+			// if a call fails - retry up to 5 times
 			async.retry(
 				{times: 5, interval: 3000}
 				,self.DoRequest(params, callback)
@@ -94,11 +94,53 @@ function ScrapeFBPage(options) {
 util.inherits(ScrapeFBPage, EventEmitter);
 
 /**
-  * params.next_url 
+  * Public function to start the page scrapping according
+  * to the options specified in the constructor
+  * @param options (options) - options to augment those in the contructor
+  * @return this - so that the calls could be chained
+  */
+ScrapeFBPage.prototype.ScrapePage = function(options) {
+	console.log("Starting to scrape the page: %s", this._options.page_id);
+	var self = this;
+
+	// set up aditional values
+	if (options) {
+		extend(
+			 true
+			,this._options
+			,options
+		);
+	}
+
+	// queu the initial task to scrape the page
+	this._queue.push(
+		{
+			next_url : this.GetRootURL()
+			,type : "POST"
+			,destination : self._feed
+		},
+		1
+	);
+
+	this._queue.drain = function() {
+		console.log('All items have been processed');
+		self.emit("END")
+	};
+
+	return this;
+}
+
+/**
+  * Callback function from the this._queue. Makes a the HTTP call
+  * to the FB API and call the function to process the result.
+  * 
+  * @params.next_url - the URL to call
+  * @params.type - the type of item that will be returned by the call7
+  *                i.e. could be "POSt", "COMMENTS" or "LIKE"
   */
 ScrapeFBPage.prototype.DoRequest = function(params, callback) {
-	var self = this;
 	console.log("ProcessRequest: %s", params.type, params.next_url);
+	var self = this;
 
 	request.get(
 		{
@@ -107,6 +149,8 @@ ScrapeFBPage.prototype.DoRequest = function(params, callback) {
 		}
 		, function (error, response, body) {
 			if (error || response.statusCode != 200) {
+				// if there is an error - call back the callback 
+				// so that async.retry could retry it ..
 				return callback(error || response.statusCode);
 			}
 			//console.log(body);
@@ -120,22 +164,22 @@ ScrapeFBPage.prototype.DoRequest = function(params, callback) {
 			if (proceed_with_next && body.paging && body.paging.next) {
 				self._queue.push(
 					{
-						next_url : body.paging.next
+						 next_url : body.paging.next
+						,type : params.type
 						,destination : params.destination
 					},
 					1
 				);
-			} else {
-				if (params.type=="POST") {
-					console.log("Ended");	
-				}
-				
-			}
-			callback(null);
+			} 
+
+			callback(null); // no error
 		}
 	);
 }
 
+/**
+  * Check if 
+  */
 ScrapeFBPage.prototype.HandleItemList = function(items, params) {
 	var self = this;
 
@@ -161,7 +205,7 @@ ScrapeFBPage.prototype.HandleItemList = function(items, params) {
 				return false;
 			}
 
-			console.log(item.created_time);
+			console.log("%s: Item crated at: %s", item.id, item.created_time);
 
 		}
 		params.destination.push(item);
@@ -178,7 +222,7 @@ ScrapeFBPage.prototype.ScheduleIncomplete = function (item) {
 
 	if (item.likes && item.likes.paging && item.likes.paging.next) {
 		// there is more data to be processed 
-		console.log("Incomplete likes");
+		console.log("%s: Incomplete likes", item.id);
 		self._queue.push(
 			{
 				next_url : item.likes.paging.next
@@ -193,15 +237,16 @@ ScrapeFBPage.prototype.ScheduleIncomplete = function (item) {
 		if (item.comments.data) {
 			for (var i=0;i<item.comments.data.length;i++) {
 				var comment = item.comments.data[i];
-				var incomplete_comment = self.ScheduleIncomplete(comment);
-				if (incomplete_comment) {
+
+				// for comments recursively check if the comment is comlete
+				if ( self.ScheduleIncomplete(comment) ) {
 					incomplete = true;
 				}
 			}
 		}
 
 		if (item.comments.paging && item.comments.paging.next) {
-			console.log("Incomplete comments");
+			console.log("%s: Incomplete comments", item.id);
 			self._queue.push(
 				{
 					next_url : item.comments.paging.next
@@ -217,21 +262,6 @@ ScrapeFBPage.prototype.ScheduleIncomplete = function (item) {
 	return incomplete;
 }
 
-ScrapeFBPage.prototype.ScrapePage = function() {
-	console.log("Starting to scrape the page: %s", this._options.page_id);
-	var self = this;
-
-	this._queue.push(
-		{
-			next_url : this.GetRootURL()
-			,type : "POST"
-			,destination : self._feed
-		},
-		1
-	);
-
-	return this;
-}
 
 ScrapeFBPage.prototype.GetRootURL = function() {
 	var fields_template = 
@@ -253,13 +283,28 @@ ScrapeFBPage.prototype.GetRootURL = function() {
 	fields_template = fields_template.replace( /LIKES_LIMIT/g, likes_limit);
 	fields_template = fields_template.replace( /COMMETNS_LIMIT/g, comments_limit);
 
+	var period = "";
+	if (this._options.period.from) {
+		period = period + util.format(
+				"&from=%s"
+				,this._options.period.from.format("YYYY-MM-DD")
+		);
+	}
+	if (this._options.period.to) {
+		period = period + util.format(
+				"&until=%s"
+				,this._options.period.to.format("YYYY-MM-DD")
+		);
+	}	
+
 	return util.format(
-		"%s/%s/%s/feed?fields=%s&limit=%d&access_token=%s",
+		"%s/%s/%s/feed?fields=%s&limit=%d%s&access_token=%s",
 			this._options.FB.api_root  		// i.e. "https://graph.facebook.com"
 			,this._options.FB.api_version 	// i.e. "v2.5"
 			,this._options.page_id		  	// the page ID that we would be scraping
 			,fields_template 				// fields
 			,this._options.limits.posts_limit
+			,period 						// period restrictions, i.e. from & until
 			,this._options.access_token
 	);
 }
