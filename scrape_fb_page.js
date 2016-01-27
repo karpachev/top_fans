@@ -137,6 +137,7 @@ ScrapeFBPage.prototype.ScrapePage = function(options) {
   * @params.next_url - the URL to call
   * @params.type - the type of item that will be returned by the call7
   *                i.e. could be "POSt", "COMMENTS" or "LIKE"
+  * @params.destination - where the result is to be appended
   */
 ScrapeFBPage.prototype.DoRequest = function(params, callback) {
 	console.log("ProcessRequest: %s", params.type, params.next_url);
@@ -188,10 +189,6 @@ ScrapeFBPage.prototype.HandleItemList = function(items, params) {
 
 
 		if (params.type=="POST") {
-			fs.writeFile(
-				util.format("./logs/%s_results.json", item.id)
-				,JSON.stringify(item,null,2)
-			);
 
 			item_created_at = moment(item.created_time);
 			if (item_created_at.isAfter(self._options.period.to)) {
@@ -207,6 +204,10 @@ ScrapeFBPage.prototype.HandleItemList = function(items, params) {
 
 			console.log("%s: Item crated at: %s", item.id, item.created_time);
 
+			item.__incomplete = 0;
+			item.__parent = item;
+		} else {
+			item.__parent = params.parent;
 		}
 		params.destination.push(item);
 
@@ -223,11 +224,13 @@ ScrapeFBPage.prototype.ScheduleIncomplete = function (item) {
 	if (item.likes && item.likes.paging && item.likes.paging.next) {
 		// there is more data to be processed 
 		console.log("%s: Incomplete likes", item.id);
+		item.__parent.__incomplete++;
 		self._queue.push(
 			{
 				next_url : item.likes.paging.next
 				,type : "LIKE"
 				,destination : item.likes.data
+				,parent : item.__parent
 			},
 			3
 		);
@@ -237,6 +240,7 @@ ScrapeFBPage.prototype.ScheduleIncomplete = function (item) {
 		if (item.comments.data) {
 			for (var i=0;i<item.comments.data.length;i++) {
 				var comment = item.comments.data[i];
+				comment.__parent = item.__parent;
 
 				// for comments recursively check if the comment is comlete
 				if ( self.ScheduleIncomplete(comment) ) {
@@ -247,11 +251,13 @@ ScrapeFBPage.prototype.ScheduleIncomplete = function (item) {
 
 		if (item.comments.paging && item.comments.paging.next) {
 			console.log("%s: Incomplete comments", item.id);
+			item.__parent.__incomplete++;
 			self._queue.push(
 				{
 					next_url : item.comments.paging.next
 					,type : "COMMENT"
 					,destination : item.comments.data
+					,parent : item.__parent
 				},
 				2
 			);
