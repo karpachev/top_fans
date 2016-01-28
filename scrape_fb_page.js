@@ -163,6 +163,7 @@ ScrapeFBPage.prototype.DoRequest = function(params, callback) {
 			}
 
 			if (proceed_with_next && body.paging && body.paging.next) {
+				if (params.parent) params.parent.__incomplete++;
 				self._queue.push(
 					{
 						 next_url : body.paging.next
