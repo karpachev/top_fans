@@ -6,15 +6,15 @@ var FBScraper = require("./scrape_fb_page.js");
 var util = require("util");
 
 
-var ACCESS_TOKEN = "244758198909856|hfW7_SLhITnr1JMGY7uU7Nhyp60"; //fs.readFileSync("access_token.txt",{encoding:"utf8"});
+var ACCESS_TOKEN = fs.readFileSync("access_token.txt",{encoding:"utf8"}); // "244758198909856|hfW7_SLhITnr1JMGY7uU7Nhyp60"; 
 var komfo_bg = new FBScraper({
 	page_id : "komfo.bg"
 	,access_token : ACCESS_TOKEN
 	,limits : {
-		 posts_limit : 5
+		 posts_limit : 200
 		,include_comments : true
 		,include_likes : true
-		,likes_limit: 20
+		,likes_limit: 100
 	}
 	,period : {
 	 	 from: moment().subtract(30,"days")
