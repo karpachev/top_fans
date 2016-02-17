@@ -84,8 +84,13 @@ function ScrapeFBPage(options) {
 		function(params, callback) {
 			// if a call fails - retry up to 5 times
 			async.retry(
-				{times: 5, interval: 3000}
-				,self.DoRequest(params, callback)
+				{
+					times: 5
+					, interval: 3000
+				}
+				,function(callback, results) {
+					self.DoRequest(params, callback);
+				}
 			);
 		}
 		,this._options.SYSTEM.concurency
@@ -152,7 +157,8 @@ ScrapeFBPage.prototype.DoRequest = function(params, callback) {
 			if (error || response.statusCode != 200) {
 				// if there is an error - call back the callback 
 				// so that async.retry could retry it ..
-				return callback(error || response.statusCode);
+				console.log("Error received: %s", JSON.stringify(response.statusCode));
+				return callback(null, error || response.statusCode);
 			}
 			//console.log(body);
 			if (body.data) {

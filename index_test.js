@@ -11,6 +11,22 @@ function test() {
 	var feed = fs.readFileSync("./logs/feed.json");
 	feed = JSON.parse(feed);
 
+	var ACCESS_TOKEN = fs.readFileSync("access_token.txt",{encoding:"utf8"}); 
+	var komfo_bg = new FBScraper({
+		page_id : "komfo.bg"
+		,access_token : ACCESS_TOKEN
+		,limits : {
+			 posts_limit : 200
+			,include_comments : true
+			,include_likes : true
+			,likes_limit: 100
+		}
+		,period : {
+		 	 from: moment().subtract(30,"days")
+			,to: moment()
+		}
+	});
+
 	var top_engagment_arr = [];
 	top_engagment(feed, {}, top_engagment_arr);
 	console.log("===========");
@@ -19,7 +35,7 @@ function test() {
 
 function start_scraping()
 {
-	var ACCESS_TOKEN = "244758198909856|hfW7_SLhITnr1JMGY7uU7Nhyp60"; //fs.readFileSync("access_token.txt",{encoding:"utf8"});
+	var ACCESS_TOKEN = fs.readFileSync("access_token.txt",{encoding:"utf8"});
 	var komfo_bg = new FBScraper({
 		page_id : "tdc"
 		,access_token : ACCESS_TOKEN
