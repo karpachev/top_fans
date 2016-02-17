@@ -42,6 +42,7 @@ function start_scraping()
 		,limits : {
 			 include_comments : true
 			,include_likes : true
+			,posts_limit : 100
 			// ,posts_limit : 5
 			// ,likes_limit: 20
 		}

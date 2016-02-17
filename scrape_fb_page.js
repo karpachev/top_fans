@@ -57,6 +57,7 @@ function ScrapeFBPage(options) {
 			}
 			,SYSTEM : {
 				 concurency : 10
+				 ,retry_count : 3
 			}
 		}
 		,options
@@ -85,11 +86,19 @@ function ScrapeFBPage(options) {
 			// if a call fails - retry up to 5 times
 			async.retry(
 				{
-					times: 5
-					, interval: 3000
+					times: self._options.SYSTEM.retry_count
+					, interval: 1000
 				}
 				,function(callback, results) {
+					if (!params.retry_count) {
+						params.retry_count = 0;
+					}
+					params.retry_count++;
+
 					self.DoRequest(params, callback);
+				}
+				,function(error,result) {
+					callback(error, result);
 				}
 			);
 		}
@@ -145,7 +154,8 @@ ScrapeFBPage.prototype.ScrapePage = function(options) {
   * @params.destination - where the result is to be appended
   */
 ScrapeFBPage.prototype.DoRequest = function(params, callback) {
-	console.log("ProcessRequest: %s", params.type, params.next_url);
+	console.log("ProcessRequest[%d]: %s %s", 
+		params.retry_count, params.type, params.next_url);
 	var self = this;
 
 	request.get(
@@ -158,7 +168,7 @@ ScrapeFBPage.prototype.DoRequest = function(params, callback) {
 				// if there is an error - call back the callback 
 				// so that async.retry could retry it ..
 				console.log("Error received: %s", JSON.stringify(response.statusCode));
-				return callback(null, error || response.statusCode);
+				return callback(error || response.statusCode);
 			}
 			//console.log(body);
 			if (body.data) {
