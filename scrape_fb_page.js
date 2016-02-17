@@ -42,7 +42,7 @@ function ScrapeFBPage(options) {
 		this._options
 		,{
 			period : {
-				 from: moment().subtract(30,"days")  // TODO: change using moment.js
+				 from: moment().subtract(30,"days")
 			}
 			,limits : {
 				 posts_limit : 30
