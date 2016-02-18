@@ -144,6 +144,25 @@ ScrapeFBPage.prototype.ScrapePage = function(options) {
 	return this;
 }
 
+ScrapeFBPage.prototype.AdjustLimit = function(url, retry_count)
+{
+	if (retry_count<=1) {
+		return url;
+	}
+
+	var URL = require('url');
+	// parse  the URL
+	var url_parsed = URL.parse(url, true);
+
+	// replace the limit GET parameter with progressively lower value
+	url_parsed.query.limit /= retry_count;
+	delete url_parsed.search;
+	
+	// build the URL again
+	return URL.format(url_parsed);	
+}
+
+
 /**
   * Callback function from the this._queue. Makes a the HTTP call
   * to the FB API and call the function to process the result.
@@ -160,7 +179,7 @@ ScrapeFBPage.prototype.DoRequest = function(params, callback) {
 
 	request.get(
 		{
-			 url : params.next_url
+			 url : self.AdjustLimit(params.next_url, params.retry_count)
 			,json : true //the response is json
 		}
 		, function (error, response, body) {
