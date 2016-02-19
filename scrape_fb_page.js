@@ -1,4 +1,5 @@
 var fs = require("fs");
+var querystring = require('querystring');
 
 const util = require("util");
 const EventEmitter = require('events');
@@ -155,7 +156,7 @@ ScrapeFBPage.prototype.AdjustLimit = function(url, retry_count)
 	var url_parsed = URL.parse(url, true);
 
 	// replace the limit GET parameter with progressively lower value
-	url_parsed.query.limit /= retry_count;
+	url_parsed.query.limit /= (retry_count+1);
 	delete url_parsed.search;
 	
 	// build the URL again
@@ -173,8 +174,9 @@ ScrapeFBPage.prototype.AdjustLimit = function(url, retry_count)
   * @params.destination - where the result is to be appended
   */
 ScrapeFBPage.prototype.DoRequest = function(params, callback) {
-	console.log("ProcessRequest[%d]: %s %s", 
-		params.retry_count, params.type, params.next_url);
+	console.log("%d ProcessRequest[%d]: %s \r\n%s", 
+		(new Date()).valueOf(),
+		params.retry_count, params.type, querystring.unescape(params.next_url) );
 	var self = this;
 
 	request.get(
@@ -186,7 +188,9 @@ ScrapeFBPage.prototype.DoRequest = function(params, callback) {
 			if (error || response.statusCode != 200) {
 				// if there is an error - call back the callback 
 				// so that async.retry could retry it ..
-				console.log("Error received: %s", JSON.stringify(response.statusCode));
+				console.log("%d Error received: %s", 
+					(new Date()).valueOf(),
+					JSON.stringify(response.statusCode));
 				return callback(error || response.statusCode);
 			}
 			//console.log(body);
@@ -238,7 +242,7 @@ ScrapeFBPage.prototype.HandleItemList = function(items, params) {
 				return false;
 			}
 
-			console.log("%s: Item crated at: %s", item.id, item.created_time);
+			console.log("%d %s: %s", (new Date()).valueOf(), item.id, item.created_time);
 
 			item.__incomplete = 0;
 			item.__parent = item;

@@ -8,7 +8,7 @@ var util = require("util");
 start_scraping();
 
 function test() {
-	var feed = fs.readFileSync("./logs/feed.json");
+	var feed = fs.readFileSync("./logs/dump/feed.json");
 	feed = JSON.parse(feed);
 
 	var ACCESS_TOKEN = fs.readFileSync("access_token.txt",{encoding:"utf8"}); 
@@ -47,7 +47,7 @@ function start_scraping()
 			// ,likes_limit: 20
 		}
 		,period : {
-		 	 from: moment().subtract(5,"months")
+		 	 from: moment().subtract(1,"months")
 			,to: moment()
 		}
 	});
@@ -62,7 +62,7 @@ function start_scraping()
 				remove_parents(post);
 				//console.log(util.inspect(post));
 				fs.writeFile(
-					util.format("./logs/%s_results.json", post.id)
+					util.format("./logs/dump/%s_results.json", post.id)
 					,JSON.stringify(post,null,2)
 				);
 			}
@@ -70,19 +70,21 @@ function start_scraping()
 
 			var top_influencers_arr = [];
 			top_influencers(komfo_bg._feed, {}, top_influencers_arr);
+			console.log( "Top Influencers" );
 			console.log( top_influencers_arr );
 			// fs.writeFileSync("./logs/feed.json",JSON.stringify(komfo_bg._feed,null,2));
 
 			var top_engagment_arr = [];
 			top_engagment(komfo_bg._feed, {}, top_engagment_arr);
 			console.log("===========");
+			console.log("Top Ambassadors");
 			console.log( top_engagment_arr );
 		});
 }
 
 
 function top_influencers(feed, users_map, users, level) {
-	console.log(level);
+	// console.log(level);
 	for (var i=0;i<feed.length;i++) {
 		var item = feed[i],
 			user_id = item.from.id;
