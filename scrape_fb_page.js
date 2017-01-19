@@ -156,7 +156,7 @@ ScrapeFBPage.prototype.AdjustLimit = function(url, retry_count)
 	var url_parsed = URL.parse(url, true);
 
 	// replace the limit GET parameter with progressively lower value
-	url_parsed.query.limit /= (retry_count+1);
+	url_parsed.query.limit /= retry_count;
 	delete url_parsed.search;
 	
 	// build the URL again
