@@ -2,7 +2,7 @@
 Top fans on your Facebook page
 
 komfo.bg/feed?fields=message,story,description,created_time,from,
-    likes.summary(true).limit(0).order(reverse_chronological){name},
+    reactions.summary(true).limit(0).order(reverse_chronological){name},
     comments.summary(true).order(reverse_chronological).limit(0)
         {
             from,message,

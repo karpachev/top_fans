@@ -42,8 +42,8 @@ fields_query_string = fields_query_string.replace( /COMMETNS_LIMIT/g, 1000);
 var feed = []; // contains the posts/comments/likes 
 var backlog_requests = [] // requests to be fired later
 var FB_URL= util.format(
-	"https://graph.facebook.com/v2.5/%s/feed?fields=%s&limit=%d&access_token=%s",
-		7329581606,
+	"https://graph.facebook.com/v2.9/%s/feed?fields=%s&limit=%d&access_token=%s",
+		"me",
 		fields_query_string,
 		100,
 		ACCESS_TOKEN
@@ -170,10 +170,10 @@ function memory_consumption(obj)
 		return 1;
 	}
 	if (typeof obj === "number") {
-		return 4;
+		return 8;
 	}
 	if (typeof obj === "string") {
-		return 2*obj.length + 4;
+		return 2*obj.length + 8;
 	}
 
 	var result = 0;
