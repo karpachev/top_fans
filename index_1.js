@@ -24,10 +24,14 @@ var stats = {
 	reactions : 0,
 	comments 	: 0,
 
+	time_start: Date.now(),
+
 	log : function () {
-		winston.info("Facebook calls: %d, retries: %d, failed", 
+		winston.info("*****")
+		winston.info("  Running for %s seconds up till now", (Date.now()-this.time_start)/1000 )
+		winston.info("  Facebook calls: %d, retries: %d, failed", 
 					this.fb_api_calls, this.fb_api_calls_retries, this.fb_api_calls_failed);
-		winston.info("Processed results: %d posts, %d reactions, %d comments",
+		winston.info("  Processed results: %d posts, %d reactions, %d comments",
 						this.posts, this.reactions, this.comments
 		);
 	}
@@ -60,7 +64,10 @@ function FbBotScraper() {
 	winston.info(this.FB_URL);
 	this.users={}
 	this.feed(this.FB_URL, ()=>{
-		winston.info("Finaly finished..")
+		winston.info("----------------------------")
+		winston.info("| Scraping finished!       |")
+		winston.info("----------------------------")
+		stats.log();
 
 		// console.log(this.users)
 		var score = Object.values(this.users);
@@ -219,7 +226,8 @@ FbBotScraper.prototype.scoreUsers_IncStats = function (user_id, object_id, posts
 
 
 FbBotScraper.prototype.getPosts = function (FB_URL) {
-	winston.log("info", "getPosts")
+	winston.log("info", "+++")
+	winston.log("info", "getPosts: Requesting a new batch of posts")
 	return new Promise(
 		(success,reject) => {
 			async.retry(
