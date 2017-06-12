@@ -21,14 +21,14 @@ var stats = {
 
 
 	posts : 0,
-	likes : 0,
+	reactions : 0,
 	comments 	: 0,
 
 	log : function () {
 		winston.info("Facebook calls: %d, retries: %d, failed", 
 					this.fb_api_calls, this.fb_api_calls_retries, this.fb_api_calls_failed);
-		winston.info("Processed results: %d posts, %d likes, %d comments",
-						this.posts, this.likes, this.comments
+		winston.info("Processed results: %d posts, %d reactions, %d comments",
+						this.posts, this.reactions, this.comments
 		);
 	}
 };
@@ -37,15 +37,15 @@ var fields_query_string =
 	'message,story,description,created_time,update_time,from' + 
 	',sharedposts.limit(100){from,message,created_time}' +
 	',shares' +
-	',reactions.summary(true).limit(100).order(reverse_chronological){name}' +
-	',comments.summary(true).order(reverse_chronological).limit(20)' +
+	',reactions.summary(true).limit(100).order(reverse_chronological){name,type}' +
+	',comments.summary(true).order(reverse_chronological).limit(100)' +
 	'{' +
 		 'from,message,created_time,update_time' +
-		',reactions.summary(true).limit(100).order(reverse_chronological){name}' +
+		',reactions.summary(true).limit(100).order(reverse_chronological){name,type}' +
 		',comments.summary(true).order(reverse_chronological).limit(100)' +
 			'{' +
 				'from,message,created_time,update_time' +
-				',reactions.summary(true).limit(100).filter(stream).order(reverse_chronological){name}' +
+				',reactions.summary(true).limit(100).filter(stream).order(reverse_chronological){name,type}' +
 			'}' +
 	'}';
 
@@ -54,7 +54,7 @@ function FbBotScraper() {
 		"https://graph.facebook.com/v2.9/%s/feed?fields=%s&limit=%d&access_token=%s",
 			"me",
 			fields_query_string,
-			100,
+			20,
 			ACCESS_TOKEN
 	);
 	winston.info(this.FB_URL);
@@ -79,7 +79,7 @@ function FbBotScraper() {
 FbBotScraper.prototype.feed = function (FB_URL, callback) {
 
 	this.getPosts(FB_URL)
-		.then( this.handlePosts.bind(this)	)
+		.then( this.getCommentsAndLikes.bind(this)	)
 		.then( this.fixAndUpdateStats.bind(this)	)
 		.then( (result)=>{
 			if (result && result.paging && result.paging.next) {
@@ -95,7 +95,7 @@ FbBotScraper.prototype.feed = function (FB_URL, callback) {
 FbBotScraper.prototype.fixAndUpdateStats = function (result, level) {
 
 	if (!result || !result.data) {
-		return;
+		return result;
 	}
 	let posts = result.data
 
@@ -105,15 +105,15 @@ FbBotScraper.prototype.fixAndUpdateStats = function (result, level) {
 
 	posts.forEach(
 		(post) => {
-			if (post.likes) {
-				// fix the likes
-				post.likes.summary = {
-					total_count : post.likes.data.length
+			if (post.reactions) {
+				// fix the reactions
+				post.reactions.summary = {
+					total_count : post.reactions.data.length
 				}
-				stats.likes += post.likes.summary.total_count;
+				stats.reactions += post.reactions.summary.total_count;
 			}
 			if (post.comments) {
-				// fix the likes
+				// fix the comments
 				post.comments.summary = {
 					total_count : post.comments.data.length
 				}
@@ -151,10 +151,10 @@ FbBotScraper.prototype.scoreUsers = function (post, level) {
 		this.scoreUsers_IncStats(post.from.id, post.id, 0, 1, 0)
 	}
 
-	if (post.likes && post.likes.data) {
-		post.likes.data.forEach(
-			(like) => {
-				this.scoreUsers_IncStats(like.id, post.id, 0, 0, 1)
+	if (post.reactions && post.reactions.data) {
+		post.reactions.data.forEach(
+			(reaction) => {
+				this.scoreUsers_IncStats(reaction.id, post.id, 0, 0, 1)
 			}
 		)
 	}
@@ -169,33 +169,33 @@ FbBotScraper.prototype.scoreUsers = function (post, level) {
 }
 
 
-FbBotScraper.prototype.scoreUsers_IncStats = function (user_id, object_id, posts, comments, likes) {
+FbBotScraper.prototype.scoreUsers_IncStats = function (user_id, object_id, posts, comments, reactions) {
     if (!this.users[user_id]) {
         this.users[user_id] = {
             total_score : 0,
             posts : 0,
             comments : 0,
-            likes : 0,
+            reactions : 0,
 
             posts_history : [],
             comments_history : [],
-            likes_history : [],
+            reactions_history : [],
 
             user_id : user_id,
 
             log : function () {
                 winston.info("User %s: score: %d. Breakdown: l:%d, c:%d, p: %d",
                     this.user_id,
-                    this.total_score, this.likes, this.comments, this.posts,
+                    this.total_score, this.reactions, this.comments, this.posts,
                 )
                 winston.info("	Posts:", this.posts_history)
                 winston.info("	Comments:", this.comments_history)
-                winston.info("	Likes:", this.likes_history)
+                winston.info("	Reactions:", this.reactions_history)
             },
 
             update : function() {
                 this.total_score = Math.floor(
-                    this.posts + 0.7*this.comments + 0.2*this.likes
+                    this.posts + 0.7*this.comments + 0.2*this.reactions
                 )
             }
         }
@@ -203,7 +203,7 @@ FbBotScraper.prototype.scoreUsers_IncStats = function (user_id, object_id, posts
     let u = this.users[user_id]
     u.posts += posts
     u.comments += comments
-    u.likes += likes
+    u.reactions += reactions
     u.update()
     
     if (posts) {
@@ -211,7 +211,7 @@ FbBotScraper.prototype.scoreUsers_IncStats = function (user_id, object_id, posts
     } else if (comments) {
         u.comments_history.push(object_id)
     } else {
-        u.likes_history.push(object_id)
+        u.reactions_history.push(object_id)
     }
 
 }
@@ -243,17 +243,19 @@ FbBotScraper.prototype.getPosts = function (FB_URL) {
 	)
 }
 
-FbBotScraper.prototype.handlePosts = function (result) {
+FbBotScraper.prototype.getCommentsAndLikes = function (result) {
 	let posts = result.data;
-	winston.log("info", "handlePosts: %s", posts.length)
+	winston.info("getCommentsAndLikes: Working on %s posts", posts.length)
 
 	return new Promise( 
 		(success, reject) => {
-			async.eachOfSeries(
+			async.eachOfLimit(
 				posts,
-				this.processPost.bind(this),
+				20,
+				this.getCommentsAndLikes_SinglePost.bind(this),
 				(err,r) => {
-					winston.log("info", "handlePosts:  finished. err: %s. result: %s", err, r);
+					winston.info("getCommentsAndLikes: Finished working on %s posts. err: %s. result: %s",
+									posts.length, err, r);
 					success(result)
 				}
 			)
@@ -261,20 +263,20 @@ FbBotScraper.prototype.handlePosts = function (result) {
 	)
 }
 
-FbBotScraper.prototype.processPost = function (post,key,callback) {
-	winston.log("info", "processPost(%s):  likes: %s/%s, comments: %s/%s",
-							post.id,
-							post.likes.data.length, post.likes.summary.total_count,
-							post.comments.data.length, post.comments.summary.total_count
-	);
+FbBotScraper.prototype.getCommentsAndLikes_SinglePost = function (post,key,callback) {
+	// winston.log("info", "processPost(%s):  reactions: %s/%s, comments: %s/%s",
+	// 						post.id,
+	// 						post.reactions.data.length, post.reactions.summary.total_count,
+	// 						post.comments.data.length, post.comments.summary.total_count
+	// );
 
-	this.getAllComments(post)
-		.then(this.getAllLikes.bind(this))
+	this.getCommentsAndLikes_Comments(post)
+		.then(this.getCommentsAndLikes_Likes.bind(this))
 		.then(
 			(post) => {
-				winston.log("info", "processPost Result(%s):  likes: %s/%s, comments: %s/%s", 
+				winston.log("info", "getCommentsAndLikes_SinglePost(%s):  reactions: %s/%s, comments: %s/%s", 
 							post.id,
-							post.likes.data.length, post.likes.summary.total_count,
+							post.reactions.data.length, post.reactions.summary.total_count,
 							post.comments.data.length, post.comments.summary.total_count
 				);
 
@@ -284,7 +286,11 @@ FbBotScraper.prototype.processPost = function (post,key,callback) {
 	return true;
 }
 
-FbBotScraper.prototype.getAllComments = function (post) {
+FbBotScraper.prototype.getCommentsAndLikes_Comments = function (post) {
+	if (!post.comments) {
+		return Promise.resolve(post)
+	}
+
 	var comments_q = async.queue(
 		this.getDataFromNext.bind(this),
 		10
@@ -292,15 +298,13 @@ FbBotScraper.prototype.getAllComments = function (post) {
 
 	let params = {
 		q: comments_q,
-		type: "comments"
+		type: "comments",
+		post: post
 	}
 
 	return new Promise(
 		(success,reject) => {
-			if (!post.comments) {
-				success(post);
-				return;
-			}
+
 			if (post.comments.paging && post.comments.paging.next) {
 				// there are more comments to the post
 				params.FB_URL= post.comments.paging.next
@@ -331,45 +335,45 @@ FbBotScraper.prototype.getAllComments = function (post) {
 	)
 }
 
-FbBotScraper.prototype.getAllLikes = function (post) {
-	var likes_q = async.queue(
+FbBotScraper.prototype.getCommentsAndLikes_Likes = function (post) {
+	if (!post.reactions) {
+		return Promise.resolve(post);
+	}
+	var reactions_q = async.queue(
 		this.getDataFromNext.bind(this),
 		10
 	)
 	let params = {
-		q: likes_q,
-		type: "likes"
+		q: reactions_q,
+		type: "reactions",
+		post: post
 	}
 
 	return new Promise(
 		(success,reject) => {
-			if (!post.likes) {
-				success(post);
-				return;
-			}
-			if (post.likes.paging && post.likes.paging.next) {
-				// there are more likes to the post
-				params.FB_URL= post.likes.paging.next
-				params.root= post.likes
-				likes_q.push(params)
+			if (post.reactions.paging && post.reactions.paging.next) {
+				// there are more reactions to the post
+				params.FB_URL= post.reactions.paging.next
+				params.root= post.reactions
+				reactions_q.push(params)
 			}
 			if (post.comments.data) {
 				post.comments.data.forEach(
 					(comment) => {
-						if (comment.likes.paging && comment.likes.paging.next) {
-							// there are more likes to this comment
-							params.FB_URL= comment.likes.paging.next
-							params.root= comment.likes
-							likes_q.push(params)
+						if (comment.reactions.paging && comment.reactions.paging.next) {
+							// there are more reactions to this comment
+							params.FB_URL= comment.reactions.paging.next
+							params.root= comment.reactions
+							reactions_q.push(params)
 						}						
 					}
 				)
 			}
-			if (likes_q.length()==0) {
+			if (reactions_q.length()==0) {
 				// no further processing is needed
 				success(post)
 			} else { 
-				likes_q.drain = () => {
+				reactions_q.drain = () => {
 					success(post);
 				}
 			}
@@ -379,14 +383,8 @@ FbBotScraper.prototype.getAllLikes = function (post) {
 
 FbBotScraper.prototype.getDataFromNext = function (params, callback) {
 	// winston.log("info", "getDataFromNext: %s -> %s", params.type, params.FB_URL);
-	if (params.type=="likes") {
-		// increase the limit to 1000
-		params.FB_URL = params.FB_URL.replace( /,limit=(\d+)/, "limit=100" )
-	}
-	if (params.type=="comments") {
-		// increase the limit to 1000
-		params.FB_URL = params.FB_URL.replace( /,limit=(\d+)/, "limit=100" )
-	}
+	params.FB_URL = params.FB_URL.replace( /,limit=(\d+)/, "limit=100" )
+	
 	async.retry(
 		{
 			times: 3,
@@ -400,13 +398,15 @@ FbBotScraper.prototype.getDataFromNext = function (params, callback) {
 			} else {
 				if (params.type=="comments") {
 					// recursively check if those comments are complete
-					this.handlePosts(res)
+					winston.log("info", "getDataFromNext(%s): Recursively check if there is incomplete data in post", params.post.id);
+
+					this.getCommentsAndLikes(res)
 						.then( ()=>{
 							this.getDataFromNext_UpdateResult(params,res);
 							callback();
 						})
 				} else {
-					// likes 
+					// reactions 
 					this.getDataFromNext_UpdateResult(params,res);
 					callback();
 				}
@@ -417,8 +417,8 @@ FbBotScraper.prototype.getDataFromNext = function (params, callback) {
 
 FbBotScraper.prototype.getDataFromNext_UpdateResult = function (params,res) {
 	params.root.data = params.root.data.concat(res.data)
-	winston.log("info", "getDataFromNext: %s: %s out of %s",
-							params.type,
+	winston.log("info", "getDataFromNext(%s): %s: %s out of %s",
+							params.post.id, params.type,
 							params.root.data.length, params.root.summary.total_count)
 	//update stats
 	//params.root.summary.total_count = params.root.data.length;

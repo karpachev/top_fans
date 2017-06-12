@@ -27,5 +27,9 @@
     "moment": "2.11.1",
     "request": "2.9.x",
     "winston": "^2.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^7.0.29",
+    "typescript": "^2.3.4"
   }
 }
